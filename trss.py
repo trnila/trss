@@ -12,7 +12,8 @@ import os
 APP_DIR = os.path.expanduser("~/.config/trss/")
 
 def pipe_github(item):
-    item['summary'] += "\n" + requests.get(item['link'] + ".patch").content.decode('utf-8')
+    if item['link'].startswith("https://github.com/"):
+        item['summary'] += "\n" + requests.get(item['link'] + ".patch").content.decode('utf-8')
 
 
 class Feeds:
@@ -64,7 +65,7 @@ class Feeds:
             if not our:
                 item['read'] = False
                 item['source'] = title
-                #pipe_github(item)
+                pipe_github(item)
                 self.items.append(item)
 
 
@@ -335,6 +336,7 @@ def main(scr):
           s.refresh()
           feeds.refresh()
           s.info = ""
+          feeds.refresh()
 
       if s.focus == 0:
           l.handle(ch)
