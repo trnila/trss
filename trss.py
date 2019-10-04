@@ -324,11 +324,12 @@ def main(scr):
       elif ch == curses.KEY_LEFT:
           s.focus = 0
       elif chr(ch) == 'n':
-          item = l.items[l.selected]
-          feeds.mark_read(item['link'], not item['read'])
-          if item['read']:
-              l.focus_next()
-          feeds.save()
+          item = l.selected_item()
+          if item:
+              feeds.mark_read(item['link'], not item['read'])
+              if item['read']:
+                  l.focus_next()
+              feeds.save()
       elif chr(ch) == 'r':
           s.info = "Downloading..."
           s.refresh()
