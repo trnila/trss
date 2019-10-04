@@ -182,6 +182,9 @@ class List:
         self.refresh()
 
     def render_item(self, i, highlight=False):
+        if not self.line_to_item:
+            return
+
         item = self.line_to_item[i]
         color = item.highlight if highlight else item.normal
         
