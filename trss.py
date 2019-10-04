@@ -17,14 +17,14 @@ def pipe_github(item):
 
 class Feeds:
     def __init__(self, bus):
-        self.urls = self.load_urls()
+        self.sources = self.load_urls()
         self.bus = bus
         self.items = []
         self.storage_path = os.path.join(APP_DIR, "db.json")
 
     def load_urls(self):
         with open(os.path.join(APP_DIR, "urls")) as f:
-            return f.read().split()
+            return json.load(f)
 
     def load(self):
         try:
@@ -39,8 +39,8 @@ class Feeds:
             json.dump(self.items, f, indent=4)
 
     def refresh(self):
-        for url in self.urls:
-            self.parse_feed(url)
+        for title, url in self.sources.items():
+            self.parse_feed(title, url)
         self.save()
         self.bus.emit(Bus.ITEMS_LOADED, self.items)
 
@@ -56,14 +56,14 @@ class Feeds:
                 return item
 
 
-    def parse_feed(self, url):
+    def parse_feed(self, title, url):
         feed = feedparser.parse(url)
         for item in feed['entries']:
             our = self.find_one(link=item['link'])
 
             if not our:
                 item['read'] = False
-                item['source'] = url
+                item['source'] = title
                 #pipe_github(item)
                 self.items.append(item)
 
@@ -91,6 +91,14 @@ class Bus:
         for fn in self.events.get(name, []):
             fn(*wargs)
 
+class AttrText:
+    def __init__(self, num, s, normal=None, highlight=None, is_category=False):
+        self.num = num
+        self.text = s
+        self.normal = normal
+        self.highlight = highlight
+        self.is_category = True
+
 class List:
     def __init__(self, cols, bus):
         bus.register(Bus.ITEMS_LOADED, self.on_new_items)
@@ -106,23 +114,31 @@ class List:
         self.source_items = []
         self.query = {'read': False}
 
-    def filter(self):
+    def filter_by(self, **query):
         filtered = []
         for item in self.source_items:
             accept = True
-            for k, v in self.query.items():
+            for k, v in query.items():
                 if item[k] != v:
                     accept = False
                     break
 
             if accept:
                 filtered.append(item)
-        self.items = sorted(filtered, key=lambda i: i['title'])
+        return filtered
+
+    def filter(self):
+        self.items = sorted(self.filter_by(**self.query), key=lambda i: (i['source'], i['updated']), reverse=True)
 
     def selected_item(self):
         if not self.items:
             return None
-        return self.items[self.selected]
+
+        label = self.line_to_item[self.selected]
+        if label.num < 0:
+            return None
+        return self.items[label.num]
+
 
     def on_new_items(self, items):
         self.source_items = items
@@ -134,32 +150,54 @@ class List:
 
     def render_again(self):
         self.pad.clear()
+
+        items = []
+        last_source = None
         for i in range(len(self.items)):
-            self.render_item(i, i == self.selected)
+            if last_source != self.items[i]['source']:
+                last_source = self.items[i]['source']
+                items.append(
+                    AttrText(
+                        -1,
+                        "{} {}".format(last_source, len(self.filter_by(source=last_source))),
+                        curses.color_pair(3),
+                        curses.color_pair(2)
+                    )
+                )
+            items.append(
+                AttrText(
+                    i,
+                    self.format_item(self.items[i]),
+                    curses.color_pair(1),
+                    curses.color_pair(2)
+                )
+            )
+
+        self.line_to_item = items
+        for i, item in enumerate(items):
+          self.render_item(i)
 
         self.bus.emit(Bus.ITEM_ACTIVATE, self.selected_item())
         self.refresh()
+
+    def render_item(self, i, highlight=False):
+        item = self.line_to_item[i]
+        color = item.highlight if highlight else item.normal
+        
+        if not self.items[item.num]['read'] and item.num >= 0:
+            color |= curses.A_BOLD
+
+        self.pad.addstr(i, 0, item.text, color)
 
     def on_item_read(self, url):
         self.render_again()
 
     def format_item(self, item):
-        return f"{item['title']}\n"
-
-    def render_item(self, index, highlight=False):
-      if not self.items:
-          return
-
-      color = curses.color_pair(2 if highlight else 1)
-
-      if not self.items[index]['read']:
-          color |= curses.A_BOLD
-
-      self.pad.addstr(index, 0, self.format_item(self.items[index]), color)
+        return f"{item['title']}\n"[0:self.width]
 
     def focus_next(self, n=1):
       self.render_item(self.selected)
-      self.selected = min(len(self.items) - 1, self.selected + n)
+      self.selected = min(len(self.line_to_item) - 1, self.selected + n)
 
       if n > 1:
           self.pad_y = self.selected
