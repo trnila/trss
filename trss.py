@@ -129,7 +129,7 @@ class List:
         return filtered
 
     def filter(self):
-        self.items = sorted(self.filter_by(**self.query), key=lambda i: (i['source'], i['updated']), reverse=True)
+        self.items = sorted(self.filter_by(**self.query), key=lambda i: (i['source'], i.get('updated', "")), reverse=True)
 
     def selected_item(self):
         if not self.items:
