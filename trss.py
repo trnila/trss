@@ -40,18 +40,33 @@ class Feeds:
 
     def refresh(self):
         for url in self.urls:
-            self.items += self.parse_feed(url)
+            self.parse_feed(url)
         self.save()
         self.bus.emit(Bus.ITEMS_LOADED, self.items)
+
+    def find_one(self, **kwargs):
+        for item in self.items:
+            accept = True
+            for k, v in kwargs.items():
+                if item[k] != v:
+                    accept = False
+                    break
+
+            if accept:
+                return item
+
 
     def parse_feed(self, url):
         feed = feedparser.parse(url)
         for item in feed['entries']:
-            item['read'] = False
-            item['source'] = url
-            #pipe_github(item)
+            our = self.find_one(link=item['link'])
 
-        return feed['entries']
+            if not our:
+                item['read'] = False
+                item['source'] = url
+                #pipe_github(item)
+                self.items.append(item)
+
 
     def mark_read(self, link, read=True):
         for item in self.items:
