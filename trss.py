@@ -160,7 +160,7 @@ class List:
                 items.append(
                     AttrText(
                         -1,
-                        "{} {}".format(last_source, len(self.filter_by(source=last_source))),
+                        "{} {}".format(last_source, len(self.filter_by(source=last_source, **self.query))),
                         curses.color_pair(3),
                         curses.color_pair(2)
                     )
