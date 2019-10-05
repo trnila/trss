@@ -7,6 +7,7 @@ import sys
 import feedparser
 import requests
 import json
+import subprocess
 import os
 
 APP_DIR = os.path.expanduser("~/.config/trss/")
@@ -335,6 +336,10 @@ def main(scr):
               if item['read']:
                   l.focus_next()
               feeds.save()
+      elif chr(ch) == '\n':
+          item = l.selected_item()
+          if item:
+              subprocess.call(["xdg-open", item['link']])
       elif chr(ch) == 'r':
           s.info = "Downloading..."
           s.refresh()
