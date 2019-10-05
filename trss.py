@@ -282,6 +282,7 @@ class Status:
 
     def refresh(self):
         line = f"{'>' if self.focus else '<'} {self.info}"
+        self.win.clear()
         self.win.addstr(0, 0, line)
         self.win.refresh()
 
@@ -339,7 +340,7 @@ def main(scr):
           s.refresh()
           feeds.refresh()
           s.info = ""
-          feeds.refresh()
+          s.refresh()
 
       if s.focus == 0:
           l.handle(ch)
